@@ -1,4 +1,4 @@
-package bh_log
+package bhlog
 
 import (
 	"fmt"

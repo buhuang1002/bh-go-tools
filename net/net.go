@@ -1,4 +1,4 @@
-package bh_net
+package bhnet
 
 import (
 	"net"

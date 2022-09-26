@@ -1,4 +1,4 @@
-package bh_fs
+package bhfs
 
 import (
 	"io/fs"

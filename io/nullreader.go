@@ -1,4 +1,4 @@
-package bh_io
+package bhio
 
 var NullReader nullReader
 
