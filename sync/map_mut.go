@@ -1,4 +1,4 @@
-package bhfs
+package bhsync
 
 import "sync"
 
