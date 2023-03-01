@@ -15,8 +15,9 @@ func FileIsExisted(filename string) bool {
 	return exist
 }
 
-func GetFilesFromDir(dir string) ([]string, error) {
+func GetFilesFromDir(dir string) ([]string, int64, error) {
 	var fileList []string
+	var size int64
 	err := filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -24,13 +25,14 @@ func GetFilesFromDir(dir string) ([]string, error) {
 		if info.IsDir() {
 			return nil
 		}
+		size += info.Size()
 		fileList = append(fileList, path)
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return fileList, nil
+	return fileList, size, nil
 }
 
 func MV(src, dst string) error {
