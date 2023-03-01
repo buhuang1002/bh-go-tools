@@ -7,19 +7,19 @@ type keyRWMut struct {
 	int
 }
 
-type MapRWMutex struct {
+type MapRWMutex[T comparable] struct {
 	mut sync.Mutex
-	m   map[interface{}]*keyRWMut
+	m   map[T]*keyRWMut
 }
 
-func NewMapRWMutex() *MapRWMutex {
-	return &MapRWMutex{
+func NewMapRWMutex[T comparable]() *MapRWMutex[T] {
+	return &MapRWMutex[T]{
 		mut: sync.Mutex{},
-		m:   map[interface{}]*keyRWMut{},
+		m:   map[T]*keyRWMut{},
 	}
 }
 
-func (m *MapRWMutex) Lock(k interface{}) {
+func (m *MapRWMutex[T]) Lock(k interface{}) {
 	m.mut.Lock()
 	v, ok := m.m[k]
 	if !ok {
@@ -36,7 +36,7 @@ func (m *MapRWMutex) Lock(k interface{}) {
 	return
 }
 
-func (m *MapRWMutex) RLock(k interface{}) {
+func (m *MapRWMutex[T]) RLock(k interface{}) {
 	m.mut.Lock()
 	v, ok := m.m[k]
 	if !ok {
@@ -53,7 +53,7 @@ func (m *MapRWMutex) RLock(k interface{}) {
 	return
 }
 
-func (m *MapRWMutex) TryLock(k interface{}) bool {
+func (m *MapRWMutex[T]) TryLock(k interface{}) bool {
 	m.mut.Lock()
 	v, ok := m.m[k]
 	if !ok {
@@ -68,7 +68,7 @@ func (m *MapRWMutex) TryLock(k interface{}) bool {
 	return false
 }
 
-func (m *MapRWMutex) TryRLock(k interface{}) bool {
+func (m *MapRWMutex[T]) TryRLock(k interface{}) bool {
 	m.mut.Lock()
 	v, ok := m.m[k]
 	if !ok {
@@ -92,7 +92,7 @@ func (m *MapRWMutex) TryRLock(k interface{}) bool {
 	return locked
 }
 
-func (m *MapRWMutex) Unlock(k interface{}) {
+func (m *MapRWMutex[T]) Unlock(k interface{}) {
 	m.mut.Lock()
 	defer m.mut.Unlock()
 	v, ok := m.m[k]
@@ -107,7 +107,7 @@ func (m *MapRWMutex) Unlock(k interface{}) {
 	}
 }
 
-func (m *MapRWMutex) RUnlock(k interface{}) {
+func (m *MapRWMutex[T]) RUnlock(k interface{}) {
 	m.mut.Lock()
 	defer m.mut.Unlock()
 	v, ok := m.m[k]
