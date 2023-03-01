@@ -7,19 +7,19 @@ type keyMut struct {
 	int
 }
 
-type MapMutex struct {
+type MapMutex[T comparable] struct {
 	mut sync.Mutex
-	m   map[interface{}]*keyMut
+	m   map[T]*keyMut
 }
 
-func NewMapMutex() *MapMutex {
-	return &MapMutex{
+func NewMapMutex[T comparable]() *MapMutex[T] {
+	return &MapMutex[T]{
 		mut: sync.Mutex{},
-		m:   map[interface{}]*keyMut{},
+		m:   map[T]*keyMut{},
 	}
 }
 
-func (m *MapMutex) Lock(k interface{}) {
+func (m *MapMutex[T]) Lock(k T) {
 	m.mut.Lock()
 	v, ok := m.m[k]
 	if !ok {
@@ -35,7 +35,7 @@ func (m *MapMutex) Lock(k interface{}) {
 	return
 }
 
-func (m *MapMutex) TryLock(k interface{}) bool {
+func (m *MapMutex[T]) TryLock(k T) bool {
 	m.mut.Lock()
 	v, ok := m.m[k]
 	if !ok {
@@ -50,7 +50,7 @@ func (m *MapMutex) TryLock(k interface{}) bool {
 	return false
 }
 
-func (m *MapMutex) Unlock(k interface{}) {
+func (m *MapMutex[T]) Unlock(k T) {
 	m.mut.Lock()
 	defer m.mut.Unlock()
 	v, ok := m.m[k]
