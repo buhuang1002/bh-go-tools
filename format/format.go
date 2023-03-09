@@ -1,4 +1,4 @@
-package format
+package bhformat
 
 import (
 	"bytes"
@@ -24,12 +24,21 @@ func GoTempate(format string, data any) (string, error) {
 
 func builtins() template.FuncMap {
 	return template.FuncMap{
-		"json": jsonFormat,
+		"json":       jsonFormat,
+		"prettyjson": prettyJsonFormat,
 	}
 }
 
 func jsonFormat(v interface{}) (string, error) {
 	result, err := json.Marshal(v)
+	if err != nil {
+		return "", err
+	}
+	return string(result), nil
+}
+
+func prettyJsonFormat(v interface{}) (string, error) {
+	result, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return "", err
 	}
