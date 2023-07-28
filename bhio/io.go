@@ -43,30 +43,34 @@ type WrapReader interface {
 	RawReader() io.Reader
 }
 
-func NewSlowReader(r io.Reader, rate int) *SlowReader {
-	return &SlowReader{
+func NewSpeedReader(r io.Reader, rate int) *SpeedReader {
+	if rate < 1 {
+		panic("illegal argument")
+	}
+
+	return &SpeedReader{
 		r,
 		rate,
 	}
 }
 
-type SlowReader struct {
+type SpeedReader struct {
 	r    io.Reader
-	rate int // data transferred per second
+	rate int // data size transferred per second
 }
 
-func (sr *SlowReader) Read(p []byte) (int, error) {
+func (sr *SpeedReader) Read(p []byte) (int, error) {
 	t0 := time.Now()
 	n, err := sr.r.Read(p)
 	time.Sleep(time.Duration(int(time.Second)*n/sr.rate) - time.Since(t0))
 	return n, err
 }
 
-func (sr *SlowReader) RawReader() io.Reader {
+func (sr *SpeedReader) RawReader() io.Reader {
 	return sr.r
 }
 
-var _ WrapReader = &SlowReader{}
+var _ WrapReader = &SpeedReader{}
 
 func NewSkipReader(r io.Reader, off int64) *SkipReader {
 	return &SkipReader{
