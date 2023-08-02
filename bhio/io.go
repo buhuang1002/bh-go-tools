@@ -40,7 +40,18 @@ func (rr *RepeatReader) Read(p []byte) (n int, err error) {
 
 type WrapReader interface {
 	io.Reader
-	RawReader() io.Reader
+	UnwrapReader() io.Reader
+}
+
+func UnwrapReader(r io.Reader) io.Reader {
+	for {
+		if wr, ok := r.(WrapReader); ok {
+			r = wr.UnwrapReader()
+			continue
+		}
+
+		return r
+	}
 }
 
 func NewSpeedReader(r io.Reader, rate int) *SpeedReader {
@@ -66,7 +77,7 @@ func (sr *SpeedReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-func (sr *SpeedReader) RawReader() io.Reader {
+func (sr *SpeedReader) UnwrapReader() io.Reader {
 	return sr.r
 }
 
@@ -111,7 +122,7 @@ func (ir *SkipReader) Read(p []byte) (int, error) {
 	return ir.r.Read(p)
 }
 
-func (ir *SkipReader) RawReader() io.Reader {
+func (ir *SkipReader) UnwrapReader() io.Reader {
 	return ir.r
 }
 
@@ -119,9 +130,19 @@ var _ WrapReader = &SkipReader{}
 
 type WrapWriter interface {
 	io.Writer
-	RawWriter() io.Writer
+	UnwrapWriter() io.Writer
 }
 
+func UnwrapWriter(w io.Writer) io.Writer {
+	for {
+		if ww, ok := w.(WrapWriter); ok {
+			w = ww.UnwrapWriter()
+			continue
+		}
+
+		return w
+	}
+}
 func NewSkipWriter(w io.Writer, skipN int64) *SkipWriter {
 	return &SkipWriter{
 		skipN: skipN,
@@ -154,13 +175,14 @@ func (sw *SkipWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-func (sw *SkipWriter) RawWriter() io.Writer {
+func (sw *SkipWriter) UnwrapWriter() io.Writer {
 	return sw.w
+
 }
 
 var _ WrapWriter = &SkipWriter{}
 
-func NewLimitWriter(w io.Writer, limit int) *LimitWriter {
+func NewLimitWriter(w io.Writer, limit int64) *LimitWriter {
 	return &LimitWriter{
 		w: w,
 		n: limit,
@@ -169,7 +191,7 @@ func NewLimitWriter(w io.Writer, limit int) *LimitWriter {
 
 type LimitWriter struct {
 	w io.Writer
-	n int
+	n int64
 }
 
 func (lw *LimitWriter) Write(p []byte) (int, error) {
@@ -178,12 +200,12 @@ func (lw *LimitWriter) Write(p []byte) (int, error) {
 	}
 
 	rawLen := len(p)
-	if lw.n < rawLen {
+	if lw.n < int64(rawLen) {
 		p = p[:lw.n]
 	}
 
 	n, err := lw.w.Write(p)
-	lw.n -= n
+	lw.n -= int64(n)
 
 	if n == rawLen {
 		return n, err
@@ -196,7 +218,7 @@ func (lw *LimitWriter) Write(p []byte) (int, error) {
 	return n, io.ErrShortWrite
 }
 
-func (lw *LimitWriter) RawWriter() io.Writer {
+func (lw *LimitWriter) UnwrapWriter() io.Writer {
 	return lw.w
 }
 
