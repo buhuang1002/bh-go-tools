@@ -72,8 +72,12 @@ type SpeedReader struct {
 
 func (sr *SpeedReader) Read(p []byte) (int, error) {
 	t0 := time.Now()
+	if len(p) > sr.rate {
+		p = p[:sr.rate]
+	}
+
 	n, err := sr.r.Read(p)
-	time.Sleep(time.Duration(int(time.Second)*n/sr.rate) - time.Since(t0))
+	time.Sleep(time.Duration(float64(time.Second)*(float64(n)/(float64(sr.rate)))) - time.Since(t0))
 	return n, err
 }
 
@@ -143,6 +147,7 @@ func UnwrapWriter(w io.Writer) io.Writer {
 		return w
 	}
 }
+
 func NewSkipWriter(w io.Writer, skipN int64) *SkipWriter {
 	return &SkipWriter{
 		skipN: skipN,
