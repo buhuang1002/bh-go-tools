@@ -260,7 +260,7 @@ func (bw *BufferWriter) Write(p []byte) (int, error) {
 			return wn, bw.wErr
 		}
 
-		n = copy(bw.cache[bw.wOffset:], p)
+		n = copy(bw.cache[bw.wOffset:], p[wn:])
 		wn += n
 		bw.wOffset += n
 
@@ -304,7 +304,6 @@ func (bw *BufferWriter) ReadFrom(r io.Reader) (int64, error) {
 			return int64(wn), err
 		}
 	}
-
 }
 
 func (bw *BufferWriter) DirectW(w func([]byte) error, needN int) error {
