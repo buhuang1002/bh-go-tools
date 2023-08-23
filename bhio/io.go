@@ -1,7 +1,9 @@
 package bhio
 
 import (
+	"errors"
 	"io"
+	"sync"
 	"time"
 )
 
@@ -187,40 +189,41 @@ func (sw *SkipWriter) UnwrapWriter() io.Writer {
 
 var _ WrapWriter = &SkipWriter{}
 
-func NewLimitWriter(w io.Writer, limit int64) *LimitWriter {
+func NewLimitWriter(w io.Writer, limit int64, endSymbol error) *LimitWriter {
+	if endSymbol == nil {
+		endSymbol = io.ErrShortWrite
+	}
+
 	return &LimitWriter{
-		w: w,
-		n: limit,
+		w:         w,
+		n:         limit,
+		endSymbol: endSymbol,
 	}
 }
 
 type LimitWriter struct {
-	w io.Writer
-	n int64
+	w         io.Writer
+	n         int64
+	endSymbol error
 }
 
 func (lw *LimitWriter) Write(p []byte) (int, error) {
 	if lw.n == 0 {
-		return 0, io.ErrShortWrite
+		return 0, lw.endSymbol
 	}
 
-	rawLen := len(p)
-	if lw.n < int64(rawLen) {
+	if lw.n < int64(len(p)) {
 		p = p[:lw.n]
 	}
 
 	n, err := lw.w.Write(p)
 	lw.n -= int64(n)
 
-	if n == rawLen {
-		return n, err
+	if err == nil && lw.n == 0 {
+		return n, lw.endSymbol
 	}
 
-	if err != nil {
-		return n, err
-	}
-
-	return n, io.ErrShortWrite
+	return n, err
 }
 
 func (lw *LimitWriter) UnwrapWriter() io.Writer {
@@ -228,3 +231,169 @@ func (lw *LimitWriter) UnwrapWriter() io.Writer {
 }
 
 var _ WrapWriter = &LimitWriter{}
+
+func NewBufferWriter(w io.Writer, bufLen int) *BufferWriter {
+	return &BufferWriter{
+		w:        w,
+		readyToW: make([]byte, bufLen),
+		cache:    make([]byte, bufLen),
+	}
+}
+
+type BufferWriter struct {
+	w        io.Writer
+	wErr     error
+	readyToW []byte
+	cache    []byte
+	wOffset  int
+	w_m      sync.Mutex
+}
+
+func (bw *BufferWriter) Write(p []byte) (int, error) {
+	var (
+		wn int
+		n  int
+	)
+
+	for {
+		if bw.wErr != nil {
+			return wn, bw.wErr
+		}
+
+		n = copy(bw.cache[bw.wOffset:], p)
+		wn += n
+		bw.wOffset += n
+
+		if bw.wOffset == len(bw.cache) {
+			bw.asyncFlush()
+		}
+
+		if wn >= len(p) {
+			break
+		}
+	}
+
+	return wn, nil
+}
+
+func (bw *BufferWriter) ReadFrom(r io.Reader) (int64, error) {
+	var (
+		wn  int
+		n   int
+		err error
+	)
+
+	for {
+		if bw.wErr != nil {
+			return int64(wn), bw.wErr
+		}
+
+		n, err = r.Read(bw.cache[bw.wOffset:])
+		wn += n
+		bw.wOffset += n
+
+		if bw.wOffset == len(bw.cache) {
+			bw.asyncFlush()
+		}
+
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return int64(wn), nil
+			}
+
+			return int64(wn), err
+		}
+	}
+
+}
+
+func (bw *BufferWriter) DirectW(w func([]byte) error, needN int) error {
+	if needN > len(bw.cache) {
+		return io.ErrShortWrite
+	}
+
+	if bw.wErr != nil {
+		return bw.wErr
+	}
+
+	if len(bw.cache)-bw.wOffset < needN {
+		bw.asyncFlush()
+	}
+
+	err := w(bw.cache[bw.wOffset : bw.wOffset+needN])
+	if err != nil {
+		return err
+	}
+
+	bw.wOffset += needN
+	if bw.wOffset == len(bw.cache) {
+		bw.asyncFlush()
+	}
+
+	return nil
+}
+
+func (bw *BufferWriter) asyncFlush() {
+	bw.flush(false)
+}
+
+func (bw *BufferWriter) flush(sync bool) {
+	bw.w_m.Lock()
+
+	if bw.wOffset == 0 {
+		bw.w_m.Unlock()
+		return
+	}
+
+	bw.readyToW, bw.cache = bw.cache[:bw.wOffset], bw.readyToW[:cap(bw.readyToW)]
+	bw.wOffset = 0
+
+	toWrite := func() {
+		defer bw.w_m.Unlock()
+		n, err := bw.w.Write(bw.readyToW)
+		if err != nil {
+			bw.wErr = err
+			return
+		}
+
+		if n != len(bw.readyToW) {
+			bw.wErr = io.ErrShortWrite
+			return
+		}
+
+		return
+	}
+
+	if sync {
+		toWrite()
+	} else {
+		go func() {
+			toWrite()
+		}()
+	}
+}
+
+func (bw *BufferWriter) Sync() error {
+	if bw.wErr != nil {
+		return bw.wErr
+	}
+
+	bw.flush(true)
+	return bw.wErr
+}
+
+func (bw *BufferWriter) Close() error {
+	bw.cache = nil
+	bw.readyToW = nil
+	if closer, ok := bw.w.(io.Closer); ok {
+		return closer.Close()
+	}
+
+	return nil
+}
+
+func (bw *BufferWriter) UnwrapWriter() io.Writer {
+	return bw.w
+}
+
+var _ WrapWriter = &BufferWriter{}
