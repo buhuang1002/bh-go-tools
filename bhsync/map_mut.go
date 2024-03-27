@@ -1,30 +1,35 @@
 package bhsync
 
-import "sync"
+import (
+	"cmp"
+	"sync"
+
+	"github.com/emirpasic/gods/v2/maps/treemap"
+)
 
 type keyMut struct {
 	sync.Mutex
 	int
 }
 
-type MapMutex[T comparable] struct {
+type MapMutex[T cmp.Ordered] struct {
 	mut sync.Mutex
-	m   map[T]*keyMut
+	m   *treemap.Map[T, *keyMut]
 }
 
-func NewMapMutex[T comparable]() *MapMutex[T] {
+func NewMapMutex[T cmp.Ordered]() *MapMutex[T] {
 	return &MapMutex[T]{
 		mut: sync.Mutex{},
-		m:   map[T]*keyMut{},
+		m:   treemap.New[T, *keyMut](),
 	}
 }
 
 func (m *MapMutex[T]) Lock(k T) {
 	m.mut.Lock()
-	v, ok := m.m[k]
+	v, ok := m.m.Get(k)
 	if !ok {
 		v = &keyMut{sync.Mutex{}, 1}
-		m.m[k] = v
+		m.m.Put(k, v)
 		v.Lock()
 		m.mut.Unlock()
 		return
@@ -37,10 +42,10 @@ func (m *MapMutex[T]) Lock(k T) {
 
 func (m *MapMutex[T]) TryLock(k T) bool {
 	m.mut.Lock()
-	v, ok := m.m[k]
+	v, ok := m.m.Get(k)
 	if !ok {
 		v = &keyMut{sync.Mutex{}, 1}
-		m.m[k] = v
+		m.m.Put(k, v)
 		v.Lock()
 		m.mut.Unlock()
 		return true
@@ -53,13 +58,13 @@ func (m *MapMutex[T]) TryLock(k T) bool {
 func (m *MapMutex[T]) Unlock(k T) {
 	m.mut.Lock()
 	defer m.mut.Unlock()
-	v, ok := m.m[k]
+	v, ok := m.m.Get(k)
 	if !ok {
 		panic("unreachable")
 	}
 	v.Unlock()
 	v.int--
 	if v.int == 0 {
-		delete(m.m, k)
+		m.m.Remove(k)
 	}
 }

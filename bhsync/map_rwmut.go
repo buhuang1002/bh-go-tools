@@ -1,30 +1,35 @@
 package bhsync
 
-import "sync"
+import (
+	"cmp"
+	"sync"
+
+	"github.com/emirpasic/gods/v2/maps/treemap"
+)
 
 type keyRWMut struct {
 	sync.RWMutex
 	int
 }
 
-type MapRWMutex[T comparable] struct {
+type MapRWMutex[T cmp.Ordered] struct {
 	mut sync.Mutex
-	m   map[T]*keyRWMut
+	m   *treemap.Map[T, *keyRWMut]
 }
 
-func NewMapRWMutex[T comparable]() *MapRWMutex[T] {
+func NewMapRWMutex[T cmp.Ordered]() *MapRWMutex[T] {
 	return &MapRWMutex[T]{
 		mut: sync.Mutex{},
-		m:   map[T]*keyRWMut{},
+		m:   treemap.New[T, *keyRWMut](),
 	}
 }
 
 func (m *MapRWMutex[T]) Lock(k T) {
 	m.mut.Lock()
-	v, ok := m.m[k]
+	v, ok := m.m.Get(k)
 	if !ok {
 		v = &keyRWMut{sync.RWMutex{}, 1}
-		m.m[k] = v
+		m.m.Put(k, v)
 		v.Lock()
 		m.mut.Unlock()
 		return
@@ -38,10 +43,10 @@ func (m *MapRWMutex[T]) Lock(k T) {
 
 func (m *MapRWMutex[T]) RLock(k T) {
 	m.mut.Lock()
-	v, ok := m.m[k]
+	v, ok := m.m.Get(k)
 	if !ok {
 		v = &keyRWMut{sync.RWMutex{}, 1}
-		m.m[k] = v
+		m.m.Put(k, v)
 		v.RLock()
 		m.mut.Unlock()
 		return
@@ -55,10 +60,10 @@ func (m *MapRWMutex[T]) RLock(k T) {
 
 func (m *MapRWMutex[T]) TryLock(k T) bool {
 	m.mut.Lock()
-	v, ok := m.m[k]
+	v, ok := m.m.Get(k)
 	if !ok {
 		v = &keyRWMut{sync.RWMutex{}, 1}
-		m.m[k] = v
+		m.m.Put(k, v)
 		v.Lock()
 		m.mut.Unlock()
 		return true
@@ -70,10 +75,10 @@ func (m *MapRWMutex[T]) TryLock(k T) bool {
 
 func (m *MapRWMutex[T]) TryRLock(k T) bool {
 	m.mut.Lock()
-	v, ok := m.m[k]
+	v, ok := m.m.Get(k)
 	if !ok {
 		v = &keyRWMut{sync.RWMutex{}, 1}
-		m.m[k] = v
+		m.m.Put(k, v)
 		locked := v.TryRLock()
 		if !locked {
 			panic("unreachable")
@@ -95,7 +100,7 @@ func (m *MapRWMutex[T]) TryRLock(k T) bool {
 func (m *MapRWMutex[T]) Unlock(k T) {
 	m.mut.Lock()
 	defer m.mut.Unlock()
-	v, ok := m.m[k]
+	v, ok := m.m.Get(k)
 	if !ok {
 		panic("unreachable")
 	}
@@ -103,14 +108,14 @@ func (m *MapRWMutex[T]) Unlock(k T) {
 	v.Unlock()
 	v.int--
 	if v.int == 0 {
-		delete(m.m, k)
+		m.m.Remove(k)
 	}
 }
 
 func (m *MapRWMutex[T]) RUnlock(k T) {
 	m.mut.Lock()
 	defer m.mut.Unlock()
-	v, ok := m.m[k]
+	v, ok := m.m.Get(k)
 	if !ok {
 		panic("unreachable")
 	}
@@ -118,6 +123,6 @@ func (m *MapRWMutex[T]) RUnlock(k T) {
 	v.RUnlock()
 	v.int--
 	if v.int == 0 {
-		delete(m.m, k)
+		m.m.Remove(k)
 	}
 }
