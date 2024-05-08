@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"text/template"
+
+	"github.com/Masterminds/sprig/v3"
 )
 
 func GoTempate(format string, data any) (string, error) {
-	tmpl := template.New("bh").Funcs(builtins())
+	tmpl := template.New("bh").Funcs(sprig.FuncMap())
 	tmpl, err := tmpl.Parse(format)
 	if err != nil {
 		return "", err
@@ -20,13 +22,6 @@ func GoTempate(format string, data any) (string, error) {
 	}
 
 	return string(buf.Bytes()), nil
-}
-
-func builtins() template.FuncMap {
-	return template.FuncMap{
-		"json":       jsonFormat,
-		"prettyjson": prettyJsonFormat,
-	}
 }
 
 func jsonFormat(v interface{}) (string, error) {
