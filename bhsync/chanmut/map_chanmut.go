@@ -7,16 +7,16 @@ import (
 	"github.com/emirpasic/gods/v2/maps/treemap"
 )
 
+type keyMut struct {
+	ChanMutex
+	int
+}
+
 func NewMapChanMutex[T cmp.Ordered]() *MapChanMutex[T] {
 	return &MapChanMutex[T]{
 		mut: sync.Mutex{},
 		m:   treemap.New[T, *keyMut](),
 	}
-}
-
-type keyMut struct {
-	ChanMutex
-	int
 }
 
 type MapChanMutex[T cmp.Ordered] struct {
@@ -94,24 +94,15 @@ type mapChanMutexState[T cmp.Ordered] struct {
 	cmState ChanMutexState
 }
 
-func (ms *mapChanMutexState[T]) Reset() bool {
-	ok := ms.cmState.Reset()
-	if ok {
-		ms.once.Do(func() {
-			ms.m.decrease(ms.key)
-		})
-	}
-
-	return ok
+func (ms *mapChanMutexState[T]) Reset() {
+	ms.once.Do(func() {
+		ms.cmState.Reset()
+		ms.m.decrease(ms.key)
+	})
 }
 
 func (ms *mapChanMutexState[T]) Done() <-chan struct{} {
 	return ms.cmState.Done()
-}
-
-func (ms *mapChanMutexState[T]) Unlock() {
-	ms.cmState.Unlock()
-	ms.m.decrease(ms.key)
 }
 
 var _ ChanMutexState = (*mapChanMutexState[int])(nil)

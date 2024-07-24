@@ -2,6 +2,10 @@ package chanmut
 
 import "sync"
 
+type ChanMutex interface {
+	Lock() ChanMutexState
+}
+
 func NewChanLock() ChanMutex {
 	return &chanMutex{
 		m: make(chan struct{}, 1),
@@ -36,6 +40,11 @@ func (m *chanMutex) Lock() ChanMutexState {
 	return state
 }
 
+type ChanMutexState interface {
+	Reset()
+	Done() <-chan struct{}
+}
+
 type chanMutexState struct {
 	locked      chan struct{}
 	interrupted chan struct{}
@@ -44,42 +53,17 @@ type chanMutexState struct {
 	once        sync.Once
 }
 
-func (cls *chanMutexState) Reset() bool {
+func (cls *chanMutexState) Reset() {
 	cls.once.Do(func() {
 		close(cls.toInterrupt)
+		select {
+		case <-cls.locked:
+			<-cls.m
+		case <-cls.interrupted:
+		}
 	})
-
-	select {
-	case <-cls.interrupted:
-		return true
-	case <-cls.locked:
-		return false
-	}
 }
 
 func (cls *chanMutexState) Done() <-chan struct{} {
 	return cls.locked
-}
-
-func (cls *chanMutexState) IsLocked() bool {
-	select {
-	case <-cls.locked:
-		return true
-	default:
-		return false
-	}
-}
-
-func (cls *chanMutexState) Unlock() {
-	<-cls.m
-}
-
-type ChanMutex interface {
-	Lock() ChanMutexState
-}
-
-type ChanMutexState interface {
-	Reset() bool
-	Done() <-chan struct{}
-	Unlock()
 }
