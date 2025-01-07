@@ -94,6 +94,10 @@ func Sub(a, b *big.Int) *big.Int {
 	return big.NewInt(0).Sub(a, b)
 }
 
+func Neg(a *big.Int) *big.Int {
+	return big.NewInt(0).Neg(a)
+}
+
 // Returns a**e unless e <= 0 (in which case returns 1).
 func Exp(a *big.Int, e *big.Int) *big.Int {
 	return big.NewInt(0).Exp(a, e, nil)
@@ -114,28 +118,28 @@ func BitLen(a *big.Int) uint {
 }
 
 func Max(x, y *big.Int) *big.Int {
-	if Equals(x, Zero()) && Equals(x, y) {
+	if Eq(x, Zero()) && Eq(x, y) {
 		if x.Sign() != 0 {
 			return y
 		}
 		return x
 	}
 
-	if GreaterThan(x, y) {
+	if Gt(x, y) {
 		return x
 	}
 	return y
 }
 
 func Min(x, y *big.Int) *big.Int {
-	if Equals(x, Zero()) && Equals(x, y) {
+	if Eq(x, Zero()) && Eq(x, y) {
 		if x.Sign() != 0 {
 			return x
 		}
 		return y
 	}
 
-	if LessThan(x, y) {
+	if Lt(x, y) {
 		return x
 	}
 	return y
@@ -145,16 +149,28 @@ func Cmp(a, b *big.Int) int {
 	return a.Cmp(b)
 }
 
-func Equals(a, b *big.Int) bool {
+func Eq(a, b *big.Int) bool {
 	return Cmp(a, b) == 0
 }
 
-func GreaterThan(a, b *big.Int) bool {
+func Ne(a, b *big.Int) bool {
+	return Cmp(a, b) != 0
+}
+
+func Gt(a, b *big.Int) bool {
 	return Cmp(a, b) > 0
 }
 
-func LessThan(a, b *big.Int) bool {
+func Lt(a, b *big.Int) bool {
 	return Cmp(a, b) < 0
+}
+
+func Ge(a, b *big.Int) bool {
+	return Cmp(a, b) >= 0
+}
+
+func Le(a, b *big.Int) bool {
+	return Cmp(a, b) <= 0
 }
 
 func FromBytes(buf []byte) (*big.Int, error) {
