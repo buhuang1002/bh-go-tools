@@ -50,7 +50,6 @@ func (m *MapMutex[T]) TryLock(k T) bool {
 		m.mut.Unlock()
 		return true
 	}
-
 	m.mut.Unlock()
 	return false
 }
@@ -67,4 +66,11 @@ func (m *MapMutex[T]) Unlock(k T) {
 	if v.int == 0 {
 		m.m.Remove(k)
 	}
+}
+
+func (m *MapMutex[T]) IsLocked(k T) bool {
+	m.mut.Lock()
+	defer m.mut.Unlock()
+	_, ok := m.m.Get(k)
+	return ok
 }
