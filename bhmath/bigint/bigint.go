@@ -1,4 +1,4 @@
-package bhbig
+package bigint
 
 import (
 	"fmt"
