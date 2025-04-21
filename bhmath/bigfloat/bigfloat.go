@@ -8,6 +8,14 @@ import (
 // BigIntMaxSerializedLen is the max length of a byte slice representing a CBOR serialized big.
 const BigIntMaxSerializedLen = 128
 
+func NewInt64(x int64) *big.Float {
+	return new(big.Float).SetInt64(x)
+}
+
+func NewBigInt(x *big.Int) *big.Float {
+	return new(big.Float).SetInt(x)
+}
+
 func NewFloat(x float64) *big.Float {
 	return big.NewFloat(x)
 }
@@ -33,6 +41,10 @@ func FromString(s string) (*big.Float, error) {
 	}
 
 	return v, nil
+}
+
+func FromBigInt(x *big.Int) *big.Float {
+	return Zero().SetInt(x)
 }
 
 func Product(ints ...*big.Float) *big.Float {

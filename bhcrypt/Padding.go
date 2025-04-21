@@ -1,6 +1,9 @@
 package bhcrypt
 
-import "bytes"
+import (
+	"bytes"
+	"fmt"
+)
 
 func PKCS7Padding(ciphertext []byte, blockSize int) []byte {
 	padding := blockSize - len(ciphertext)%blockSize
@@ -8,8 +11,12 @@ func PKCS7Padding(ciphertext []byte, blockSize int) []byte {
 	return append(ciphertext, padtext...)
 }
 
-func PKCS7UnPadding(origData []byte) []byte {
+func PKCS7UnPadding(origData []byte) ([]byte, error) {
 	length := len(origData)
 	unpadding := int(origData[length-1])
-	return origData[:(length - unpadding)]
+	if length < unpadding {
+		return nil, fmt.Errorf("illegal PKCS7Padding data")
+	}
+
+	return origData[:(length - unpadding)], nil
 }

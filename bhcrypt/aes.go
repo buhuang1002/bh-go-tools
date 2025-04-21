@@ -31,6 +31,10 @@ func AesDecrypt(crypted, key []byte) ([]byte, error) {
 	blockMode := cipher.NewCBCDecrypter(block, key[:blockSize])
 	origData := make([]byte, len(crypted))
 	blockMode.CryptBlocks(origData, crypted)
-	origData = PKCS7UnPadding(origData)
+	origData, err = PKCS7UnPadding(origData)
+	if err != nil {
+		return nil, err
+	}
+
 	return origData, nil
 }
