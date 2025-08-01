@@ -1,6 +1,7 @@
 package bhmap
 
 import (
+	"iter"
 	"sync"
 
 	"github.com/emirpasic/gods/v2/maps"
@@ -80,4 +81,17 @@ func (sm *SyncMap[K, V]) String() string {
 	defer sm.m.RUnlock()
 
 	return sm.inner.String()
+}
+
+func (sm *SyncMap[K, V]) Iter() iter.Seq2[K, V] {
+	return func(yield func(k K, v V) bool) {
+		sm.m.RLock()
+		defer sm.m.RUnlock()
+		for _, key := range sm.inner.Keys() {
+			value, _ := sm.inner.Get(key)
+			if !yield(key, value) {
+				return
+			}
+		}
+	}
 }
